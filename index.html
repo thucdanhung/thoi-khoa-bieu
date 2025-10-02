@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tool Lập Thời Khóa Biểu</title>
+  <style>
+    :root{--primary:#2463d6;--muted:#f4f6fb;--border:#d9d9d9}
+    *{box-sizing:border-box}
+    body{font-family:Inter,Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#f7f9fc,#ffffff);margin:0;padding:24px;color:#222}
+    .container{max-width:1100px;margin:0 auto}
+
+    /* WELCOME */
+    #welcome{display:flex;align-items:center;justify-content:center;height:70vh;flex-direction:column}
+    #welcome h1{font-size:24px;margin-bottom:12px}
+    .btn{background:var(--primary);color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;margin:6px;font-weight:600}
+    .btn.secondary{background:#e6eefc;color:#154a86}
+
+    /* TIMETABLE */
+    #timetable-page{display:none}
+    .page-title{display:flex;justify-content:space-between;align-items:center}
+    .page-title h2{margin:0}
+    .board-wrap{margin-top:18px;background:#fff;padding:18px;border-radius:12px;box-shadow:0 6px 20px rgba(34,50,80,0.06)}
+
+    table.timetable{width:100%;border-collapse:collapse;font-size:14px}
+    table.timetable th, table.timetable td{border:1px solid var(--border);padding:12px;text-align:center;vertical-align:top;min-width:120px}
+    table.timetable th{background:var(--muted);font-weight:700}
+    table.timetable .left-col{background:#fafafa;font-weight:700;width:90px}
+    /* cell content */
+    .cell-inner{min-height:80px;display:flex;flex-direction:column;align-items:flex-start;padding:6px}
+    .cell-default{font-size:13px;color:#6b7280}
+    .change-line{display:none;font-size:13px;color:var(--primary);margin-top:6px;cursor:pointer}
+    td:hover .cell-default{display:none}
+    td:hover .change-line{display:block}
+
+    /* activity list inside cell */
+    .activity-item{display:block;font-size:13px;padding:6px 4px;border-radius:6px;background:linear-gradient(90deg,#ffffff,#fbfdff);width:100%;margin-bottom:6px;border:1px solid #eef3fb}
+    .activity-time{font-weight:600;margin-right:8px}
+
+    /* bottom actions */
+    .bottom-actions{display:flex;justify-content:space-between;margin-top:12px}
+
+    /* FORM PAGE */
+    #form-page{display:none}
+    .form-card{max-width:640px;margin:18px auto;background:#fff;padding:18px;border-radius:12px;box-shadow:0 6px 20px rgba(34,50,80,0.06)}
+    label{display:block;margin-top:10px;font-weight:600}
+    .time-row{display:flex;gap:8px;align-items:center;margin-top:6px}
+    select,input[type=text]{padding:8px;border:1px solid var(--border);border-radius:8px;width:100%}
+    .inline{display:flex;gap:8px}
+    .form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+
+    /* small helper */
+    .muted{color:#6b7280;font-size:13px}
+    .note{font-size:13px;color:#444;margin-top:6px}
+
+    @media (max-width:900px){table.timetable th,table.timetable td{font-size:12px;padding:8px}}
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- WELCOME -->
+    <div id="welcome">
+      <h1>Bạn có muốn lập thời khóa biểu cho tuần tới?</h1>
+      <div style="margin-top:14px">
+        <button class="btn" id="btn-start">Lập bảng</button>
+        <button class="btn secondary" id="btn-exit">Thoát</button>
+      </div>
+      <p class="muted" style="margin-top:12px">Chọn Lập bảng để bắt đầu hoặc Thoát để dừng.</p>
+      <div id="goodbye-msg" style="display:none;margin-top:14px;font-weight:600;color:#2b2b2b">Cảm ơn đã sử dụng tool.</div>
+    </div>
+
+    <!-- TIMETABLE PAGE -->
+    <div id="timetable-page">
+      <div class="page-title">
+        <h2>Thời khóa biểu tuần</h2>
+        <div><button class="btn secondary" id="btn-clear">Xóa hết</button></div>
+      </div>
+
+      <div class="board-wrap">
+        <table class="timetable" id="timetable">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Thứ 2</th>
+              <th>Thứ 3</th>
+              <th>Thứ 4</th>
+              <th>Thứ 5</th>
+              <th>Thứ 6</th>
+              <th>Thứ 7</th>
+              <th>Chủ nhật</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-buoi="sang">
+              <td class="left-col">Sáng</td>
+              <td data-day="2"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+              <td data-day="3"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+              <td data-day="4"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+              <td data-day="5"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+              <td data-day="6"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+              <td data-day="7"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+              <td data-day="cn"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+            </tr>
+            <tr data-buoi="chieu">
+              <td class="left-col">Chiều</td>
+              <td data-day="2"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+              <td data-day="3"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+              <td data-day="4"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+              <td data-day="5"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+              <td data-day="6"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+              <td data-day="7"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+              <td data-day="cn"><div class="cell-inner"><div class="cell-default">Trống</div><div class="change-line">Thay đổi</div></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- FORM PAGE -->
+    <div id="form-page">
+      <div class="form-card">
+        <h3 id="form-title">Thêm / Sửa hoạt động</h3>
+        <div class="note" id="cell-info">(Ô: )</div>
+
+        <label>Thời gian bắt đầu</label>
+        <div class="time-row">
+          <select id="start-hour"></select>
+          <select id="start-minute"></select>
+        </div>
+
+        <label>Thời gian kết thúc</label>
+        <div class="time-row">
+          <select id="end-hour"></select>
+          <select id="end-minute"></select>
+        </div>
+
+        <label>Nội dung hoạt động</label>
+        <input type="text" id="activity-text" placeholder="Ví dụ: Toán - ôn tập chương 2" />
+
+        <p class="muted">Lưu ý: Buổi sáng: 06:45 → 11:45. Buổi chiều: 12:30 → 17:30.</p>
+
+        <div class="form-actions">
+          <button class="btn secondary" id="btn-cancel">Hủy</button>
+          <button class="btn" id="btn-complete">Hoàn thành</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+/** SINGLE-FILE SPA LOGIC + DATA MODEL **/
+const SESSION_LIMITS = {
+  sang: {min: 6*60 + 45, max: 11*60 + 45},
+  chieu:{min: 12*60 + 30, max: 17*60 + 30}
+};
+
+const state = {
+  // store activities per cell key = day-buoi (e.g. '2-sang' or 'cn-chieu')
+  // each value: array of {start:int(min), end:int(min), text:string}
+  activities: {},
+  editing: null // {day, buoi}
+};
+
+// UI elements
+const welcomeEl = document.getElementById('welcome');
+const timetableEl = document.getElementById('timetable-page');
+const formEl = document.getElementById('form-page');
+const goodbyeMsg = document.getElementById('goodbye-msg');
+
+// buttons
+document.getElementById('btn-start').addEventListener('click', ()=>{
+  welcomeEl.style.display='none';
+  timetableEl.style.display='block';
+});
+document.getElementById('btn-exit').addEventListener('click', ()=>{
+  document.getElementById('btn-start').style.display='none';
+  document.getElementById('btn-exit').style.display='none';
+  goodbyeMsg.style.display='block';
+});
+
+// clear
+document.getElementById('btn-clear').addEventListener('click', ()=>{
+  if(!confirm('Xóa hết thời khóa biểu?')) return;
+  state.activities = {};
+  renderTable();
+});
+
+// attach click handlers to cells
+function attachCellHandlers(){
+  document.querySelectorAll('table.timetable tbody tr').forEach(tr=>{
+    const buoi = tr.getAttribute('data-buoi');
+    tr.querySelectorAll('td[data-day]').forEach(td=>{
+      td.addEventListener('click', ()=>{
+        const day = td.getAttribute('data-day');
+        openForm(day, buoi);
+      });
+    });
+  });
+}
+
+attachCellHandlers();
+
+// render table from state
+function renderTable(){
+  // for each cell build inner content
+  document.querySelectorAll('table.timetable tbody tr').forEach(tr=>{
+    const buoi = tr.getAttribute('data-buoi');
+    tr.querySelectorAll('td[data-day]').forEach(td=>{
+      const day = td.getAttribute('data-day');
+      const key = `${day}-${buoi}`;
+      const container = td.querySelector('.cell-inner');
+      container.innerHTML = '';
+      const list = state.activities[key] || [];
+      if(list.length === 0){
+        const def = document.createElement('div'); def.className='cell-default'; def.textContent='Trống';
+        const ch = document.createElement('div'); ch.className='change-line'; ch.textContent='Thay đổi';
+        container.appendChild(def); container.appendChild(ch);
+      } else {
+        // sort activities by start time
+        list.sort((a,b)=>a.start-b.start);
+        // render numbered items
+        list.forEach((act,i)=>{
+          const block = document.createElement('div'); block.className='activity-item';
+          block.innerHTML = `<span style='font-size:12px;margin-right:8px;color:#444'>${i+1}.</span>`+
+                            `<span class='activity-time'>${formatMin(act.start)} - ${formatMin(act.end)}</span>`+
+                            `<span style='font-size:13px;color:#222'>${escapeHtml(act.text)}</span>`;
+          container.appendChild(block);
+        });
+        // add change line hidden
+        const ch = document.createElement('div'); ch.className='change-line'; ch.textContent='Thay đổi'; container.appendChild(ch);
+      }
+    });
+  });
+}
+
+renderTable();
+
+// OPEN FORM PAGE
+function openForm(day, buoi){
+  state.editing = {day, buoi};
+  // show form page
+  timetableEl.style.display='none';
+  formEl.style.display='block';
+  // set title and info
+  document.getElementById('form-title').textContent = `Thêm / Sửa hoạt động - Thứ ${day.toUpperCase()} (${buoi})`;
+  document.getElementById('cell-info').textContent = `Ô: Thứ ${day.toUpperCase()} - ${buoi === 'sang' ? 'Sáng' : 'Chiều'}`;
+  setupTimeSelectors(buoi);
+  // clear text
+  document.getElementById('activity-text').value = '';
+}
+
+// CANCEL
+document.getElementById('btn-cancel').addEventListener('click', ()=>{
+  formEl.style.display='none';
+  timetableEl.style.display='block';
+});
+
+// COMPLETE -> save activity and go back
+document.getElementById('btn-complete').addEventListener('click', ()=>{
+  const start = getSelectedMinutes('start');
+  const end = getSelectedMinutes('end');
+  const text = document.getElementById('activity-text').value.trim() || 'Không tên';
+  const {day, buoi} = state.editing;
+  const limits = SESSION_LIMITS[buoi];
+  if(start < limits.min || end > limits.max){
+    alert(`Thời gian phải nằm trong khoảng ${minStr(limits.min)} - ${minStr(limits.max)} cho buổi ${buoi}`);
+    return;
+  }
+  if(start >= end){ alert('Giờ kết thúc phải lớn hơn giờ bắt đầu.'); return; }
+
+  const key = `${day}-${buoi}`;
+  if(!state.activities[key]) state.activities[key]=[];
+
+  // check conflict with existing activities in same cell
+  const conflict = state.activities[key].some(a=> !(end <= a.start || start >= a.end));
+  if(conflict){
+    const ok = confirm('Cảnh báo: hoạt động này trùng thời gian với hoạt động đã có. Chọn OK để vẫn thêm (chồng lên), Cancel để hủy và chỉnh lại thời gian.');
+    if(!ok) return;
+  }
+
+  state.activities[key].push({start,end,text});
+  // keep sorted
+  state.activities[key].sort((a,b)=>a.start-b.start);
+
+  // go back
+  formEl.style.display='none';
+  timetableEl.style.display='block';
+  renderTable();
+});
+
+// TIME SELECTORS SETUP
+function setupTimeSelectors(buoi){
+  const limits = SESSION_LIMITS[buoi];
+  const sh = document.getElementById('start-hour');
+  const sm = document.getElementById('start-minute');
+  const eh = document.getElementById('end-hour');
+  const em = document.getElementById('end-minute');
+  sh.innerHTML=''; sm.innerHTML=''; eh.innerHTML=''; em.innerHTML='';
+
+  const startHour = Math.floor(limits.min/60);
+  const endHour = Math.floor(limits.max/60);
+  for(let h=startHour; h<=endHour; h++){
+    const o1=document.createElement('option'); o1.value=h; o1.text = pad(h);
+    const o2=o1.cloneNode(true);
+    sh.appendChild(o1); eh.appendChild(o2);
+  }
+  // minute options will be generated based on selected hour
+  sh.onchange = ()=> populateMinutes('start', buoi);
+  eh.onchange = ()=> populateMinutes('end', buoi);
+  // default selections: start = limits.min, end = min(limits.min+60, limits.max)
+  sh.value = Math.floor(limits.min/60);
+  populateMinutes('start', buoi);
+  sm.value = limits.min % 60;
+
+  eh.value = Math.min(Math.floor((limits.min+60)/60), endHour);
+  populateMinutes('end', buoi);
+  em.value = Math.min((limits.min+60)%60, limits.max%60);
+}
+
+function populateMinutes(which, buoi){
+  const limits = SESSION_LIMITS[buoi];
+  const hourSel = document.getElementById(which==='start'?'start-hour':'end-hour');
+  const minSel = document.getElementById(which==='start'?'start-minute':'end-minute');
+  const hour = Number(hourSel.value);
+  minSel.innerHTML='';
+  let minMinute = 0, maxMinute = 59;
+  const minHour = Math.floor(limits.min/60);
+  const maxHour = Math.floor(limits.max/60);
+  if(hour === minHour) minMinute = limits.min % 60;
+  if(hour === maxHour) maxMinute = limits.max % 60;
+  for(let m=minMinute; m<=maxMinute; m+=5){
+    const o = document.createElement('option'); o.value=m; o.text = pad(m);
+    minSel.appendChild(o);
+  }
+}
+
+function getSelectedMinutes(prefix){
+  const h = Number(document.getElementById(prefix+'-hour').value);
+  const m = Number(document.getElementById(prefix+'-minute').value);
+  return h*60 + m;
+}
+
+function formatMin(min){
+  const h = Math.floor(min/60); const m = min%60; return pad(h)+':'+pad(m);
+}
+function pad(n){return n<10?('0'+n):(''+n)}
+function minStr(m){return formatMin(m)}
+function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// initial attach for dynamic cells (re-attach after render)
+(function addCellClickDelegation(){
+  const table = document.getElementById('timetable');
+  table.addEventListener('click', (e)=>{
+    // find nearest td
+    let td = e.target.closest('td');
+    if(!td || !table.contains(td)) return;
+    if(!td.hasAttribute('data-day')) return;
+    const tr = td.closest('tr');
+    const buoi = tr.getAttribute('data-buoi');
+    const day = td.getAttribute('data-day');
+    openForm(day, buoi);
+  });
+})();
+
+// render once more to ensure event state
+renderTable();
+</script>
+</body>
+</html>
