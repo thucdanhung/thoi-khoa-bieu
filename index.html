@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Tool Lập Thời Khóa Biểu</title>
+  <title>Tool Lập Thời Khóa Biểu - Fixed</title>
   <style>
     :root{--primary:#2463d6;--muted:#f4f6fb;--border:#d9d9d9}
     *{box-sizing:border-box}
@@ -15,6 +15,7 @@
     #welcome h1{font-size:24px;margin-bottom:12px}
     .btn{background:var(--primary);color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;margin:6px;font-weight:600}
     .btn.secondary{background:#e6eefc;color:#154a86}
+    .btn.danger{background:#ef4444;color:#fff}
 
     /* TIMETABLE */
     #timetable-page{display:none}
@@ -34,8 +35,13 @@
     td:hover .change-line{display:block}
 
     /* activity list inside cell */
-    .activity-item{display:block;font-size:13px;padding:6px 4px;border-radius:6px;background:linear-gradient(90deg,#ffffff,#fbfdff);width:100%;margin-bottom:6px;border:1px solid #eef3fb}
-    .activity-time{font-weight:600;margin-right:8px}
+    .activity-item{display:flex;align-items:center;justify-content:space-between;font-size:13px;padding:6px 8px;border-radius:6px;background:linear-gradient(90deg,#ffffff,#fbfdff);width:100%;margin-bottom:6px;border:1px solid #eef3fb}
+    .activity-left{display:flex;align-items:center;gap:8px}
+    .activity-time{font-weight:600}
+    .act-text{color:#222}
+    .act-num{font-size:12px;color:#444}
+    .act-actions{display:flex;gap:6px}
+    .action-btn{border:1px solid #d1d5db;padding:4px 8px;border-radius:6px;background:#fff;cursor:pointer;font-size:12px}
 
     /* bottom actions */
     .bottom-actions{display:flex;justify-content:space-between;margin-top:12px}
@@ -143,6 +149,7 @@
 
         <div class="form-actions">
           <button class="btn secondary" id="btn-cancel">Hủy</button>
+          <button class="btn secondary" id="btn-delete" style="display:none;background:#fff;border-color:#ef4444;color:#ef4444">Xóa</button>
           <button class="btn" id="btn-complete">Hoàn thành</button>
         </div>
       </div>
@@ -151,17 +158,23 @@
   </div>
 
 <script>
-/** SINGLE-FILE SPA LOGIC + DATA MODEL **/
+/** SINGLE-FILE SPA LOGIC + DATA MODEL (FIXED)
+ * - Persist data to localStorage
+ * - Remove duplicate listeners (use delegated table click only)
+ * - Add per-activity Edit/Delete
+ * - Fix default end-time calculation
+ * - Better day labels
+ */
+
+const STORAGE_KEY = 'tkb_activities_v1';
 const SESSION_LIMITS = {
   sang: {min: 6*60 + 45, max: 11*60 + 45},
   chieu:{min: 12*60 + 30, max: 17*60 + 30}
 };
 
 const state = {
-  // store activities per cell key = day-buoi (e.g. '2-sang' or 'cn-chieu')
-  // each value: array of {start:int(min), end:int(min), text:string}
-  activities: {},
-  editing: null // {day, buoi}
+  activities: {}, // key -> array of {start,end,text}
+  editing: null // {day, buoi, index|null}
 };
 
 // UI elements
@@ -185,77 +198,26 @@ document.getElementById('btn-exit').addEventListener('click', ()=>{
 document.getElementById('btn-clear').addEventListener('click', ()=>{
   if(!confirm('Xóa hết thời khóa biểu?')) return;
   state.activities = {};
+  saveState();
   renderTable();
 });
 
-// attach click handlers to cells
-function attachCellHandlers(){
-  document.querySelectorAll('table.timetable tbody tr').forEach(tr=>{
-    const buoi = tr.getAttribute('data-buoi');
-    tr.querySelectorAll('td[data-day]').forEach(td=>{
-      td.addEventListener('click', ()=>{
-        const day = td.getAttribute('data-day');
-        openForm(day, buoi);
-      });
-    });
-  });
-}
-
-attachCellHandlers();
-
-// render table from state
-function renderTable(){
-  // for each cell build inner content
-  document.querySelectorAll('table.timetable tbody tr').forEach(tr=>{
-    const buoi = tr.getAttribute('data-buoi');
-    tr.querySelectorAll('td[data-day]').forEach(td=>{
-      const day = td.getAttribute('data-day');
-      const key = `${day}-${buoi}`;
-      const container = td.querySelector('.cell-inner');
-      container.innerHTML = '';
-      const list = state.activities[key] || [];
-      if(list.length === 0){
-        const def = document.createElement('div'); def.className='cell-default'; def.textContent='Trống';
-        const ch = document.createElement('div'); ch.className='change-line'; ch.textContent='Thay đổi';
-        container.appendChild(def); container.appendChild(ch);
-      } else {
-        // sort activities by start time
-        list.sort((a,b)=>a.start-b.start);
-        // render numbered items
-        list.forEach((act,i)=>{
-          const block = document.createElement('div'); block.className='activity-item';
-          block.innerHTML = `<span style='font-size:12px;margin-right:8px;color:#444'>${i+1}.</span>`+
-                            `<span class='activity-time'>${formatMin(act.start)} - ${formatMin(act.end)}</span>`+
-                            `<span style='font-size:13px;color:#222'>${escapeHtml(act.text)}</span>`;
-          container.appendChild(block);
-        });
-        // add change line hidden
-        const ch = document.createElement('div'); ch.className='change-line'; ch.textContent='Thay đổi'; container.appendChild(ch);
-      }
-    });
-  });
-}
-
-renderTable();
-
-// OPEN FORM PAGE
-function openForm(day, buoi){
-  state.editing = {day, buoi};
-  // show form page
-  timetableEl.style.display='none';
-  formEl.style.display='block';
-  // set title and info
-  document.getElementById('form-title').textContent = `Thêm / Sửa hoạt động - Thứ ${day.toUpperCase()} (${buoi})`;
-  document.getElementById('cell-info').textContent = `Ô: Thứ ${day.toUpperCase()} - ${buoi === 'sang' ? 'Sáng' : 'Chiều'}`;
-  setupTimeSelectors(buoi);
-  // clear text
-  document.getElementById('activity-text').value = '';
-}
-
-// CANCEL
+// form buttons
 document.getElementById('btn-cancel').addEventListener('click', ()=>{
-  formEl.style.display='none';
-  timetableEl.style.display='block';
+  closeForm();
+});
+
+document.getElementById('btn-delete').addEventListener('click', ()=>{
+  if(!state.editing) return;
+  const {day, buoi, index} = state.editing;
+  if(index == null) return;
+  if(!confirm('Bạn có chắc muốn xóa hoạt động này?')) return;
+  const key = `${day}-${buoi}`;
+  state.activities[key].splice(index,1);
+  if(state.activities[key].length===0) delete state.activities[key];
+  saveState();
+  closeForm();
+  renderTable();
 });
 
 // COMPLETE -> save activity and go back
@@ -263,7 +225,8 @@ document.getElementById('btn-complete').addEventListener('click', ()=>{
   const start = getSelectedMinutes('start');
   const end = getSelectedMinutes('end');
   const text = document.getElementById('activity-text').value.trim() || 'Không tên';
-  const {day, buoi} = state.editing;
+  const {day, buoi, index} = state.editing || {};
+  if(!day || !buoi){ alert('Lỗi: thông tin ô không hợp lệ.'); return; }
   const limits = SESSION_LIMITS[buoi];
   if(start < limits.min || end > limits.max){
     alert(`Thời gian phải nằm trong khoảng ${minStr(limits.min)} - ${minStr(limits.max)} cho buổi ${buoi}`);
@@ -274,20 +237,26 @@ document.getElementById('btn-complete').addEventListener('click', ()=>{
   const key = `${day}-${buoi}`;
   if(!state.activities[key]) state.activities[key]=[];
 
-  // check conflict with existing activities in same cell
-  const conflict = state.activities[key].some(a=> !(end <= a.start || start >= a.end));
+  // check conflict (exclude current index if editing)
+  const conflict = state.activities[key].some((a,i)=> i !== index && !(end <= a.start || start >= a.end));
   if(conflict){
     const ok = confirm('Cảnh báo: hoạt động này trùng thời gian với hoạt động đã có. Chọn OK để vẫn thêm (chồng lên), Cancel để hủy và chỉnh lại thời gian.');
     if(!ok) return;
   }
 
-  state.activities[key].push({start,end,text});
+  if(index == null){
+    // add new
+    state.activities[key].push({start,end,text});
+  } else {
+    // update existing
+    state.activities[key][index] = {start,end,text};
+  }
+
   // keep sorted
   state.activities[key].sort((a,b)=>a.start-b.start);
 
-  // go back
-  formEl.style.display='none';
-  timetableEl.style.display='block';
+  saveState();
+  closeForm();
   renderTable();
 });
 
@@ -311,13 +280,16 @@ function setupTimeSelectors(buoi){
   sh.onchange = ()=> populateMinutes('start', buoi);
   eh.onchange = ()=> populateMinutes('end', buoi);
   // default selections: start = limits.min, end = min(limits.min+60, limits.max)
-  sh.value = Math.floor(limits.min/60);
-  populateMinutes('start', buoi);
-  sm.value = limits.min % 60;
+  const defaultStart = limits.min;
+  const defaultEnd = Math.min(limits.min + 60, limits.max);
 
-  eh.value = Math.min(Math.floor((limits.min+60)/60), endHour);
+  sh.value = Math.floor(defaultStart/60);
+  populateMinutes('start', buoi);
+  sm.value = defaultStart % 60;
+
+  eh.value = Math.floor(defaultEnd/60);
   populateMinutes('end', buoi);
-  em.value = Math.min((limits.min+60)%60, limits.max%60);
+  em.value = defaultEnd % 60;
 }
 
 function populateMinutes(which, buoi){
@@ -350,10 +322,74 @@ function pad(n){return n<10?('0'+n):(''+n)}
 function minStr(m){return formatMin(m)}
 function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-// initial attach for dynamic cells (re-attach after render)
+function dayLabel(day){ return day === 'cn' ? 'Chủ nhật' : ('Thứ ' + day); }
+function buoiLabel(b){ return b === 'sang' ? 'Sáng' : 'Chiều'; }
+
+// render table from state
+function renderTable(){
+  // for each cell build inner content
+  document.querySelectorAll('table.timetable tbody tr').forEach(tr=>{
+    const buoi = tr.getAttribute('data-buoi');
+    tr.querySelectorAll('td[data-day]').forEach(td=>{
+      const day = td.getAttribute('data-day');
+      const key = `${day}-${buoi}`;
+      const container = td.querySelector('.cell-inner');
+      container.innerHTML = '';
+      const list = state.activities[key] || [];
+      if(list.length === 0){
+        const def = document.createElement('div'); def.className='cell-default'; def.textContent='Trống';
+        const ch = document.createElement('div'); ch.className='change-line'; ch.textContent='Thay đổi';
+        container.appendChild(def); container.appendChild(ch);
+      } else {
+        // sort activities by start time
+        list.sort((a,b)=>a.start-b.start);
+        // render numbered items with edit/delete
+        list.forEach((act,i)=>{
+          const block = document.createElement('div'); block.className='activity-item';
+          const left = document.createElement('div'); left.className='activity-left';
+          left.innerHTML = `<span class='act-num'>${i+1}.</span>` +
+                           `<span class='activity-time'>${formatMin(act.start)} - ${formatMin(act.end)}</span>` +
+                           `<span class='act-text'>${escapeHtml(act.text)}</span>`;
+          const actions = document.createElement('div'); actions.className='act-actions';
+          const editBtn = document.createElement('button'); editBtn.className='action-btn act-edit'; editBtn.textContent='Sửa';
+          editBtn.dataset.day = day; editBtn.dataset.buoi = buoi; editBtn.dataset.index = i;
+          const delBtn = document.createElement('button'); delBtn.className='action-btn act-delete'; delBtn.textContent='Xóa';
+          delBtn.dataset.day = day; delBtn.dataset.buoi = buoi; delBtn.dataset.index = i;
+          actions.appendChild(editBtn); actions.appendChild(delBtn);
+          block.appendChild(left); block.appendChild(actions);
+          container.appendChild(block);
+        });
+        const ch = document.createElement('div'); ch.className='change-line'; ch.textContent='Thay đổi'; container.appendChild(ch);
+      }
+    });
+  });
+}
+
+// Delegated click handler for table cells and action buttons
 (function addCellClickDelegation(){
   const table = document.getElementById('timetable');
   table.addEventListener('click', (e)=>{
+    // edit button
+    const edit = e.target.closest('.act-edit');
+    if(edit){
+      const day = edit.dataset.day; const buoi = edit.dataset.buoi; const index = Number(edit.dataset.index);
+      openForm(day, buoi, index);
+      return;
+    }
+    // delete button inside cell (quick delete)
+    const del = e.target.closest('.act-delete');
+    if(del){
+      const day = del.dataset.day; const buoi = del.dataset.buoi; const index = Number(del.dataset.index);
+      if(!confirm('Bạn có chắc muốn xóa hoạt động này?')) return;
+      const key = `${day}-${buoi}`;
+      if(state.activities[key]){
+        state.activities[key].splice(index,1);
+        if(state.activities[key].length===0) delete state.activities[key];
+        saveState(); renderTable();
+      }
+      return;
+    }
+
     // find nearest td
     let td = e.target.closest('td');
     if(!td || !table.contains(td)) return;
@@ -361,12 +397,67 @@ function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').repla
     const tr = td.closest('tr');
     const buoi = tr.getAttribute('data-buoi');
     const day = td.getAttribute('data-day');
-    openForm(day, buoi);
+    openForm(day, buoi); // create new
   });
 })();
 
-// render once more to ensure event state
-renderTable();
+function openForm(day, buoi, index = null){
+  state.editing = {day, buoi, index};
+  // show form page
+  timetableEl.style.display='none';
+  formEl.style.display='block';
+  // set title and info
+  document.getElementById('form-title').textContent = `Thêm / Sửa hoạt động - ${dayLabel(day)} (${buoiLabel(buoi)})`;
+  document.getElementById('cell-info').textContent = `Ô: ${dayLabel(day)} - ${buoiLabel(buoi)}`;
+  setupTimeSelectors(buoi);
+
+  // if editing existing, prefill
+  const key = `${day}-${buoi}`;
+  if(index != null && state.activities[key] && state.activities[key][index]){
+    const act = state.activities[key][index];
+    // set start selections
+    const sh = document.getElementById('start-hour'); const sm = document.getElementById('start-minute');
+    const eh = document.getElementById('end-hour'); const em = document.getElementById('end-minute');
+    sh.value = Math.floor(act.start/60); populateMinutes('start', buoi); sm.value = act.start%60;
+    eh.value = Math.floor(act.end/60); populateMinutes('end', buoi); em.value = act.end%60;
+    document.getElementById('activity-text').value = act.text;
+    // show delete button
+    document.getElementById('btn-delete').style.display = 'inline-block';
+  } else {
+    // new activity - clear text and show default times
+    document.getElementById('activity-text').value = '';
+    document.getElementById('btn-delete').style.display = 'none';
+    // ensure defaults already set by setupTimeSelectors
+  }
+}
+
+function closeForm(){
+  formEl.style.display='none';
+  timetableEl.style.display='block';
+  state.editing = null;
+}
+
+// STORAGE
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    const parsed = JSON.parse(raw);
+    if(parsed && parsed.activities) state.activities = parsed.activities;
+  }catch(e){ console.error('Không thể load state từ localStorage', e); }
+}
+function saveState(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({activities: state.activities}));
+  }catch(e){ console.error('Lưu state thất bại', e); }
+}
+
+// init
+loadState(); renderTable();
+// ensure saved before leaving
+window.addEventListener('beforeunload', saveState);
+
 </script>
 </body>
 </html>
+
